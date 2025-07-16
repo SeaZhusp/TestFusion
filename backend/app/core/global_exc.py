@@ -73,7 +73,6 @@ def register_exception(app: FastAPI):
         if msg == "Field required":
             msg = "请求失败，缺少必填项！"
         elif msg == "value is not a valid list":
-            print(exc.errors())
             msg = f"类型错误，提交参数应该为列表！"
         elif msg == "value is not a valid int":
             msg = f"类型错误，提交参数应该为整数！"

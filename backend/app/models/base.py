@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, DateTime
 from datetime import datetime
 
-from app.core.database import Base
+from app.core.dependencies.database import Base
 
 
 class BaseModel(Base):

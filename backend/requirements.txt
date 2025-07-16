@@ -5,3 +5,8 @@ fastapi==0.116.1
 starlette~=0.47.1
 uvicorn==0.35.0
 orjson==3.11.0
+passlib==1.7.4
+PyJWT==2.10.1
+asyncmy==0.2.10
+alembic==1.16.4
+pymysql==1.1.1
