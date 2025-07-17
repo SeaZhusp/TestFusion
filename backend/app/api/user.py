@@ -3,15 +3,42 @@ from fastapi import APIRouter, Depends
 from app.core.dependencies.auth import Auth, UserAuth
 from app.core.response import SuccessResponse
 from app.params.user import UserParams
+from app.schemas.user import UserUpdateIn
 from app.services.user import UserService
 
 router = APIRouter(prefix="/users")
 
 
 @router.get("/", summary="获取用户列表")
-async def get_list(
+async def get_users(
         params: UserParams = Depends(),
         auth: Auth = Depends(UserAuth())
 ):
-    datas, count = await UserService.get_list(auth, params)
+    datas, count = await UserService.get_users(auth, params)
     return SuccessResponse(datas, count=count, msg="获取用户列表成功")
+
+@router.get("/{user_id}", summary="获取用户信息")
+async def get_user(
+        user_id: int,
+        auth: Auth = Depends(UserAuth())
+):
+    data = await UserService.get_user(auth, user_id)
+    return SuccessResponse(data, msg="获取用户信息成功")
+
+@router.put("/{user_id}", summary="更新用户信息")
+async def update_user(
+        user_id: int,
+        data: UserUpdateIn,
+        auth: Auth = Depends(UserAuth())
+):
+    data = await UserService.update_user(auth, user_id, data)
+    return SuccessResponse(data, msg="更新用户信息成功")
+
+
+@router.delete("/{user_id}", summary="删除用户")
+async def delete_user(
+        user_id: int,
+        auth: Auth = Depends(UserAuth())
+):
+    await UserService.delete_user(auth, user_id)
+    return SuccessResponse(msg="删除用户成功")

@@ -86,11 +86,11 @@ class BaseDal:
         await self.flush(obj)
         return await self.serialize(obj, v_schema, v_return_obj)
 
-    async def delete_datas(self, ids: List[int], v_soft=False, **kwargs):
+    async def delete_datas(self, ids: List[int], v_soft=True, **kwargs):
         if v_soft:
             await self.db.execute(update(self.model).where(self.model.id.in_(ids)).values(
-                delete_time=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                is_delete=True,
+                deleted_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                is_delete=DeleteStatus.YES.value,
                 **kwargs
             ))
         else:
