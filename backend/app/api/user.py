@@ -66,7 +66,7 @@ async def reset_user_password(
     return SuccessResponse(msg="密码重置成功")
 
 
-@router.patch("/password", summary="用户修改自己密码")
+@router.put("/password", summary="用户修改自己密码")
 async def update_user_password(
         data: UserPasswordUpdateIn,
         auth: Auth = Depends(UserAuth())
