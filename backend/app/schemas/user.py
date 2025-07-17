@@ -30,3 +30,7 @@ class UserUpdateIn(BaseModel):
     email: Optional[Email] = Field(None, max_length=50)
     mobile: Optional[Mobile] = Field(None, max_length=50)
     gender: int = Field(..., ge=0, le=2)
+
+
+class UserUpdateStatusIn(BaseModel):
+    status: int = Field(..., ge=0, le=1)

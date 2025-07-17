@@ -1,7 +1,8 @@
 from app.core.dependencies.auth import Auth
+from app.core.global_exc import CustomException
 from app.crud.user import UserDal
 from app.params.user import UserParams
-from app.schemas.user import UserOut, UserUpdateIn
+from app.schemas.user import UserOut, UserUpdateIn, UserUpdateStatusIn
 
 
 class UserService:
@@ -24,3 +25,13 @@ class UserService:
     @staticmethod
     async def delete_user(auth: Auth, user_id: int):
         await UserDal(auth.db).delete_datas(ids=[user_id])
+
+    @staticmethod
+    async def update_user_status(auth: Auth, user_id: int, data: UserUpdateStatusIn):
+        user = await UserDal(auth.db).get_data(user_id, v_return_none=True)
+        if not user:
+            raise CustomException(msg="用户不存在")
+        if user_id == auth.user.id:
+            raise CustomException(msg="不能修改自己的状态")
+        result = await UserDal(auth.db).put_data(user_id, data)
+        return result
