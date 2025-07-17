@@ -4,9 +4,11 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy import func, delete, update, select, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.selectable import Select as SelectType
-from typing import Any, List
+from sqlalchemy.sql.elements import BinaryExpression
+from typing import Any, List, Union
 
 from app.core.enums import DeleteStatus
+from app.core.global_exc import CustomException
 
 
 class BaseDal:
@@ -63,6 +65,11 @@ class BaseDal:
         serialized = [await self.serialize(obj, v_schema) for obj in all_data]
         return (serialized, count) if v_return_count else serialized
 
+    async def get_count(self, v_where: List[BinaryExpression] = None, **kwargs) -> int:
+        sql = await self.build_query(v_start_sql=select(func.count(self.model.id)), v_where=v_where, **kwargs)
+        result = await self.db.execute(sql)
+        return result.scalar()
+
     async def create_data(self, data, v_schema=None, v_return_obj=False):
         obj = self.model(**(data if isinstance(data, dict) else data.model_dump()))
         await self.flush(obj)
@@ -88,6 +95,17 @@ class BaseDal:
             ))
         else:
             await self.db.execute(delete(self.model).where(self.model.id.in_(ids)))
+        await self.db.flush()
+
+    async def delete_datas_condition(self, v_where: List[BinaryExpression], v_soft=False, **kwargs):
+        if v_soft:
+            await self.db.execute(update(self.model).where(*v_where).values(
+                delete_time=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                is_delete=True,
+                **kwargs
+            ))
+        else:
+            await self.db.execute(delete(self.model).where(*v_where))
         await self.db.flush()
 
     async def build_query(self, v_start_sql: SelectType = None, v_where=None, v_order=None, v_order_field=None,
@@ -121,10 +139,53 @@ class BaseDal:
     def add_filter_condition(self, sql: SelectType, v_where=None, **kwargs):
         if v_where:
             sql = sql.where(*v_where)
-        for field, value in kwargs.items():
-            if value not in (None, ""):
-                sql = sql.where(getattr(self.model, field) == value)
+        conditions = self.__dict_filter(**kwargs)
+        if conditions:
+            sql = sql.where(*conditions)
         return sql
+
+    def __dict_filter(self, **kwargs) -> List[BinaryExpression]:
+        conditions = []
+        for field, value in kwargs.items():
+            if value is None or value == "":
+                continue
+
+            attr = getattr(self.model, field)
+
+            if isinstance(value, tuple):
+                if len(value) == 0 or value[1] in (None, ""):
+                    continue  # 忽略无效操作或空值
+                op, val = value[0], value[1]
+
+                if op == "like":
+                    conditions.append(attr.like(f"%{val}%"))
+                elif op == "in":
+                    if isinstance(val, list) and val:
+                        conditions.append(attr.in_(val))
+                elif op == "between" and isinstance(val, list) and len(val) == 2:
+                    conditions.append(attr.between(val[0], val[1]))
+                elif op == "!=":
+                    conditions.append(attr != val)
+                elif op == ">":
+                    conditions.append(attr > val)
+                elif op == ">=":
+                    conditions.append(attr >= val)
+                elif op == "<=":
+                    conditions.append(attr <= val)
+                elif op == "None":
+                    conditions.append(attr.is_(None))
+                elif op == "not None":
+                    conditions.append(attr.isnot(None))
+                elif op == "date":
+                    conditions.append(func.date_format(attr, "%Y-%m-%d") == val)
+                elif op == "month":
+                    conditions.append(func.date_format(attr, "%Y-%m") == val)
+                else:
+                    raise CustomException("SQL查询语法错误")
+            else:
+                conditions.append(attr == value)
+
+        return conditions
 
     async def execute_query(self, sql: SelectType, use_scalars=True):
         return await (self.db.scalars(sql) if use_scalars else self.db.execute(sql))

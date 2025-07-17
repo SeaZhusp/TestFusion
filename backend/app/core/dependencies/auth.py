@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import Request, Header, Depends
 
 import jwt
@@ -13,10 +15,13 @@ from app.crud.user import UserDal
 from app.models.user import User
 from app.core.enums import UserStatus
 
+__all__ = ["Auth", "OpenAuth", "UserAuth"]
+
 
 class Auth(BaseModel):
-    user: User = None
+    user: User | None = None
     db: AsyncSession
+    request: Request
     data_range: int | None = None
     dept_ids: list | None = None
 
@@ -76,9 +81,9 @@ class AuthValidation:
         except RuntimeError:
             request.scope["body"] = "获取失败"
         if is_all:
-            return Auth(user=user, db=db)
+            return Auth(user=user, db=db, request=request)
         data_range, dept_ids = await cls.get_user_data_range(user, db)
-        return Auth(user=user, db=db, data_range=data_range, dept_ids=dept_ids)
+        return Auth(user=user, db=db, request=request, data_range=data_range, dept_ids=dept_ids)
 
     @classmethod
     def get_user_permissions(cls, user: User) -> set:
@@ -133,55 +138,20 @@ class AuthValidation:
 
 
 class OpenAuth(AuthValidation):
-    """
-    开放认证，无认证也可以访问
-    认证了以后可以获取到用户信息，无认证则获取不到
-    """
+    """开放认证"""
 
     async def __call__(
             self,
             request: Request,
-            token: Header(None),
+            token: Optional[str] = Header(default=None),
             db: AsyncSession = Depends(db_getter)
     ):
-        """
-        每次调用依赖此类的接口会执行该方法
-        """
-        if not settings.OAUTH_ENABLE:
-            return Auth(db=db)
-        try:
-            username = self.validate_token(token)["username"]
-            user = await UserDal(db).get_data(username=username, v_return_none=True)
-            return await self.validate_user(request, user, db, is_all=True)
-        except CustomException:
-            return Auth(db=db)
+        return Auth(db=db, request=request)
 
 
-class AllUserAuth(AuthValidation):
+class UserAuth(AuthValidation):
     """
-    支持所有用户认证
-    获取用户基本信息
-    """
-
-    async def __call__(
-            self,
-            request: Request,
-            token: str = Header(None),
-            db: AsyncSession = Depends(db_getter)
-    ):
-        """
-        每次调用依赖此类的接口会执行该方法
-        """
-        if not settings.OAUTH_ENABLE:
-            return Auth(db=db)
-        username = self.validate_token(token)["username"]
-        user = await UserDal(db).get_data(username=username, v_return_none=True)
-        return await self.validate_user(request, user, db, is_all=True)
-
-
-class FullAdminAuth(AuthValidation):
-    """
-    只支持员工用户认证
+    用户认证
     获取员工用户完整信息
     如果有权限，那么会验证该用户是否包括权限列表中的其中一个权限
     """
@@ -195,20 +165,16 @@ class FullAdminAuth(AuthValidation):
     async def __call__(
             self,
             request: Request,
-            token: str = Header(None),
+            token: Optional[str] = Header(default=None),
             db: AsyncSession = Depends(db_getter)
     ) -> Auth:
-        """
-        每次调用依赖此类的接口会执行该方法
-        """
-        if not settings.OAUTH_ENABLE:
-            return Auth(db=db)
         username = self.validate_token(token)["username"]
-        options = [joinedload(SysUser.roles).subqueryload(SysRole.menus), joinedload(SysUser.depts)]
-        user = await UserDal(db).get_data(username=username, v_return_none=True, v_options=options)
+        # options = [joinedload(SysUser.roles).subqueryload(SysRole.menus), joinedload(SysUser.depts)]
+        # user = await UserDal(db).get_data(username=username, v_return_none=True, v_options=options)
+        user = await UserDal(db).get_data(username=username, v_return_none=True)
         result = await self.validate_user(request, user, db, is_all=False)
-        permissions = self.get_user_permissions(user)
-        if permissions != {'*.*.*'} and self.permissions:
-            if not (self.permissions & permissions):
-                raise CustomException(msg="无权限操作", code=status.HTTP_403_FORBIDDEN)
+        # permissions = self.get_user_permissions(user)
+        # if permissions != {'*.*.*'} and self.permissions:
+        #     if not (self.permissions & permissions):
+        #         raise CustomException(msg="无权限操作", code=status.HTTP_403_FORBIDDEN)
         return result
