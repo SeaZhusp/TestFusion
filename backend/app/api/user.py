@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies.database import db_getter
 from app.core.response import SuccessResponse
-from app.schemas.user import LoginIn
+from app.schemas.user import LoginIn, UserCreateIn
 from app.services.user import UserService
 
 router = APIRouter(prefix="/user")
@@ -11,8 +11,17 @@ router = APIRouter(prefix="/user")
 
 @router.post("/login")
 async def login(
-        login_in: LoginIn,
+        data: LoginIn,
         db: AsyncSession = Depends(db_getter)
 ):
-    result = UserService.login(db, login_in)
+    result = await UserService.login(db, data)
     return SuccessResponse(data=result, msg="登录成功")
+
+
+@router.post("/register")
+async def register(
+        data: UserCreateIn,
+        db: AsyncSession = Depends(db_getter)
+):
+    result = await UserService.create_user(db, data)
+    return SuccessResponse(data=result, msg="注册成功")

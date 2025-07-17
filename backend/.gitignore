@@ -30,4 +30,3 @@ ENV/
 __pycache__
 !migrations/__init__.py
 *.pyc
-alembic

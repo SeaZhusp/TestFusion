@@ -33,7 +33,10 @@ class BaseDal:
                 return None
             raise HTTPException(status_code=404, detail="未找到此数据")
 
-        return await self.serialize(data, v_schema)
+        if v_schema:
+            return await self.serialize(data, v_schema)
+        else:
+            return data
 
     async def get_datas(self, page=1, limit=10, v_return_count=False, v_return_scalars=False,
                         v_return_objs=False, v_schema=None, v_use_scalars=True, **kwargs):

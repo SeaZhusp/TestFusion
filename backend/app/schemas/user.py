@@ -1,16 +1,19 @@
 from pydantic import BaseModel, Field
 
 
-class User(BaseModel):
-    name: str = Field(..., min_length=3, max_length=50)
+class UserBase(BaseModel):
+    fullname: str = Field(..., min_length=3, max_length=50)
     username: str = Field(..., min_length=3, max_length=50)
 
+    class Config:
+        from_attributes = True
 
-class UserCreateIn(User):
+
+class UserCreateIn(UserBase):
     password: str = Field(..., min_length=6, max_length=50)
 
 
-class UserOut(User):
+class UserOut(UserBase):
     id: int = Field(...)
 
 
