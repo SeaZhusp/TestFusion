@@ -34,3 +34,21 @@ class UserUpdateIn(BaseModel):
 
 class UserUpdateStatusIn(BaseModel):
     status: int = Field(..., ge=0, le=1)
+
+
+class UserPasswordUpdateIn(BaseModel):
+    old_password: str = Field(..., min_length=6, max_length=50)
+    new_password: str = Field(..., min_length=6, max_length=50)
+    confirm_password: str = Field(..., min_length=6, max_length=50)
+
+    def validate_passwords(self):
+        """验证密码"""
+        if self.new_password != self.confirm_password:
+            raise ValueError("新密码和确认密码不一致")
+        if self.old_password == self.new_password:
+            raise ValueError("新密码不能与旧密码相同")
+        return True
+
+
+class AdminPasswordResetIn(BaseModel):
+    password: str = Field(..., min_length=6, max_length=50)

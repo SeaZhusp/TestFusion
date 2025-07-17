@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from app.core.dependencies.auth import Auth, UserAuth
 from app.core.response import SuccessResponse
 from app.params.user import UserParams
-from app.schemas.user import UserUpdateIn, UserUpdateStatusIn
+from app.schemas.user import UserUpdateIn, UserUpdateStatusIn, AdminPasswordResetIn, UserPasswordUpdateIn
 from app.services.user import UserService
 
 router = APIRouter(prefix="/users")
@@ -54,3 +54,22 @@ async def update_user_status(
 ):
     await UserService.update_user_status(auth, user_id, data)
     return SuccessResponse(msg="更新用户状态成功")
+
+
+@router.put("/{user_id}/password/reset", summary="管理员重置用户密码")
+async def reset_user_password(
+        user_id: int,
+        data: AdminPasswordResetIn,
+        auth: Auth = Depends(UserAuth())
+):
+    await UserService.reset_user_password(auth, user_id, data.new_password)
+    return SuccessResponse(msg="密码重置成功")
+
+
+@router.patch("/password", summary="用户修改自己密码")
+async def update_user_password(
+        data: UserPasswordUpdateIn,
+        auth: Auth = Depends(UserAuth())
+):
+    await UserService.update_user_password(auth, auth.user.id, data)
+    return SuccessResponse(msg="密码修改成功")

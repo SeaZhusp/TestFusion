@@ -1,8 +1,9 @@
 from app.core.dependencies.auth import Auth
 from app.core.global_exc import CustomException
 from app.crud.user import UserDal
+from app.models.user import User
 from app.params.user import UserParams
-from app.schemas.user import UserOut, UserUpdateIn, UserUpdateStatusIn
+from app.schemas.user import UserOut, UserUpdateIn, UserUpdateStatusIn, AdminPasswordResetIn, UserPasswordUpdateIn
 
 
 class UserService:
@@ -34,4 +35,36 @@ class UserService:
         if user_id == auth.user.id:
             raise CustomException(msg="不能修改自己的状态")
         result = await UserDal(auth.db).put_data(user_id, data)
+        return result
+
+    @staticmethod
+    async def reset_user_password(auth: Auth, user_id: int, data: AdminPasswordResetIn):
+        """管理员重置用户密码"""
+        # 获取用户信息
+        user = await UserDal(auth.db).get_data(user_id)
+        # 加密新密码
+        hashed_password = User.get_password_hash(data.password)
+        # 更新密码
+        update_data = {"password": hashed_password}
+        result = await UserDal(auth.db).put_data(user_id, update_data)
+        return result
+
+    @staticmethod
+    async def update_user_password(auth: Auth, user_id: int, data: UserPasswordUpdateIn):
+        """用户修改自己密码"""
+        # 验证密码格式
+        try:
+            data.validate_passwords()
+        except ValueError as e:
+            raise CustomException(msg=str(e))
+        # 获取当前用户信息
+        user = await UserDal(auth.db).get_data(auth.user.id)
+        # 验证旧密码
+        if not User.verify_password(data.old_password, user.password):
+            raise CustomException(msg="旧密码错误")
+        # 加密新密码
+        hashed_password = User.get_password_hash(data.new_password)
+        # 更新密码
+        update_data = {"password": hashed_password}
+        result = await UserDal(auth.db).put_data(auth.user.id, update_data)
         return result
