@@ -5,7 +5,8 @@ from app.core.global_exc import register_exception
 
 
 def register_routers(app: FastAPI) -> None:
-    from app.api import user
+    from app.api import auth, user
+    app.include_router(auth.router, prefix=settings.prefix, tags=["认证"])
     app.include_router(user.router, prefix=settings.prefix, tags=["用户"])
 
 

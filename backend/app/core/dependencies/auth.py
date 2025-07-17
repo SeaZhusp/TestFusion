@@ -143,7 +143,6 @@ class OpenAuth(AuthValidation):
     async def __call__(
             self,
             request: Request,
-            token: Optional[str] = Header(default=None),
             db: AsyncSession = Depends(db_getter)
     ):
         return Auth(db=db, request=request)
